@@ -1,0 +1,26 @@
+[package]
+name = "reddit_image_mirror"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "3.1.6", features = ["derive"] }
+
+toml = "0.5.8"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+
+img_hash = "3.2"
+image = "0.23.14" # Version required for img_hash 3.2
+
+url = "2.2.2"
+reqwest = { version = "0.11.9", features = ["blocking"] }
+bytes = "1.1.0"
+
+oauth1-header = { git = "https://github.com/katattakd/oauth1-header" }
+http = "0.2.6"
+
+base64 = "0.13.0"
+
+sqlite = "0.26.0"
