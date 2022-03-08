@@ -46,8 +46,18 @@ pub fn get_reddit_posts(
 	config: &Config,
 	client: &Client,
 ) -> Result<Vec<Post>, Box<dyn std::error::Error>> {
+	let depth_string = if let Some(limit) = &config.reddit.max_depth {
+		"?limit=".to_owned() + &limit.to_string()
+	} else {
+		"".to_string()
+	};
+
 	let response = client
-		.get("https://reddit.com/r/".to_owned() + &config.reddit.subreddits.join("+") + ".json")
+		.get(
+			"https://reddit.com/r/".to_owned()
+				+ &config.reddit.subreddits.join("+")
+				+ ".json" + &depth_string,
+		)
 		.send()?
 		.error_for_status()?;
 

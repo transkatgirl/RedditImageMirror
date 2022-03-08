@@ -19,8 +19,10 @@ pub struct Post {
 pub struct UniquePost {
 	pub title: String,
 	pub link: String,
+	static_id: String,
 	pub raw_image: Vec<u8>,
 	pub sensitive: bool,
+	pub depth: usize,
 }
 
 fn database_contains(
@@ -113,12 +115,26 @@ pub fn load_database(file: &str) -> Result<Connection, Box<dyn std::error::Error
 	Ok(connection)
 }
 
+pub fn database_remove_unique_post(
+	database: &Connection,
+	post: &UniquePost,
+) -> Result<(), Box<dyn std::error::Error>> {
+	let id: &str = &post.static_id;
+
+	let mut statement = database.prepare(["DELETE FROM posts WHERE static_id == ?"].concat())?;
+	statement.bind(1, id)?;
+
+	while let State::Row = statement.next()? {}
+
+	Ok(())
+}
+
 pub fn get_unique_post(
 	database: &Connection,
 	client: &Client,
 	posts: Vec<Post>,
 ) -> Result<Option<UniquePost>, Box<dyn std::error::Error>> {
-	for post in posts {
+	for (depth, post) in posts.into_iter().enumerate() {
 		if database_contains(database, "posts", "static_id", &post.static_id)? {
 			continue;
 		}
@@ -141,7 +157,9 @@ pub fn get_unique_post(
 			title: post.title,
 			link: post.link,
 			raw_image: hashed_image.raw_image,
+			static_id: post.static_id,
 			sensitive: post.sensitive,
+			depth,
 		}));
 	}
 

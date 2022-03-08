@@ -12,7 +12,14 @@ mod twitter;
 use clap::Parser;
 use reqwest::blocking::Client;
 
-use std::{thread, time::Duration};
+use std::{
+	sync::{
+		atomic::{AtomicBool, Ordering},
+		Arc,
+	},
+	thread,
+	time::Duration,
+};
 
 /// Mirrors image posts from Reddit to Twitter.
 #[derive(Parser, Debug)]
@@ -36,39 +43,59 @@ fn main() {
 		.build()
 		.expect("Unable to initalize HTTP client!");
 
-	/*loop {}*/
+	let running = Arc::new(AtomicBool::new(true));
+	let r = running.clone();
 
-	println!("\nDownloading posts from Reddit...");
+	ctrlc::set_handler(move || {
+		r.store(false, Ordering::SeqCst);
+	})
+	.expect("Unable to set Ctrl-C handler!");
 
-	let posts = reddit::get_reddit_posts(&config, &http_client)
-		.expect("Unable to download posts from Reddit!");
+	while running.load(Ordering::SeqCst) {
+		let mut sleep_seconds = 900;
 
-	println!(
-		"Downloaded {:?} usable posts, attempting to find a unique post...",
-		posts.len()
-	);
+		println!("Downloading posts from Reddit...");
 
-	let unique_post = posts::get_unique_post(&database, &http_client, posts)
-		.expect("Unable to find a unique post!")
-		.expect("No unique posts found!");
+		if let Ok(posts) = reddit::get_reddit_posts(&config, &http_client) {
+			println!(
+				"Downloaded {:?} usable posts, attempting to find a unique post...",
+				posts.len()
+			);
 
-	println!(
-		"Found unique post ({}) from Reddit, uploading to Twitter...",
-		unique_post.link
-	);
+			if let Ok(Some(unique_post)) = posts::get_unique_post(&database, &http_client, posts) {
+				println!(
+					"Found unique post ({}, depth: {}) from Reddit, uploading to Twitter...",
+					unique_post.link, unique_post.depth
+				);
 
-	let uploaded_post = twitter::upload_unique_post(&config, &database, &http_client, &unique_post)
-		.expect("Unable to upload post to Twitter!");
+				if let Ok(uploaded_post) =
+					twitter::upload_unique_post(&config, &database, &http_client, &unique_post)
+				{
+					println!(
+						"Sucessfully uploaded post (id: {}) to Twitter",
+						uploaded_post
+					);
+					sleep_seconds = 60 * unique_post.depth as u64;
+				} else {
+					posts::database_remove_unique_post(&database, &unique_post)
+						.expect("Unable to talk to database!");
+					eprintln!("Unable to upload post to Twitter!");
+				}
+			} else {
+				eprintln!("Unable to find a unique post!");
+			}
+		} else {
+			eprintln!("Unable to download posts from reddit!");
+		}
 
-	println!(
-		"Sucessfully uploaded post (id: {}) to Twitter",
-		uploaded_post
-	);
+		println!("Cleaning up old Twitter posts...");
 
-	println!("Cleaning up old Twitter posts...");
+		if let Ok(removed_posts) = twitter::delete_old_messages(&config, &database, &http_client) {
+			println!("Removed {:?} old posts.\n", removed_posts.len());
+		} else {
+			eprintln!("Unable to delete old posts!");
+		}
 
-	let removed_posts = twitter::delete_old_messages(&config, &database, &http_client)
-		.expect("Unable to delete old posts!");
-
-	println!("Removed {:?} old posts.", removed_posts.len());
+		thread::sleep(Duration::from_secs(sleep_seconds));
+	}
 }

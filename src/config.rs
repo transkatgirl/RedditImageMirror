@@ -12,6 +12,7 @@ pub struct Config {
 pub struct Reddit {
 	pub subreddits: Vec<String>,
 	pub min_ratio: Option<f32>,
+	pub max_depth: Option<usize>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,6 +38,7 @@ pub fn load_config_file(file: &str) -> Result<Config, Box<dyn std::error::Error>
 			reddit: Reddit {
 				subreddits: Vec::from(["all".to_string(), "popular".to_string()]),
 				min_ratio: Some(0.85),
+				max_depth: Some(40),
 			},
 			twitter: Twitter {
 				api_key: "API Key".to_string(),
