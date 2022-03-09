@@ -1,0 +1,45 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug executable 'reddit_image_mirror'",
+			"cargo": {
+				"args": [
+					"build",
+					"--bin=reddit_image_mirror",
+					"--package=reddit_image_mirror"
+				],
+				"filter": {
+					"name": "reddit_image_mirror",
+					"kind": "bin"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug unit tests in executable 'reddit_image_mirror'",
+			"cargo": {
+				"args": [
+					"test",
+					"--no-run",
+					"--bin=reddit_image_mirror",
+					"--package=reddit_image_mirror"
+				],
+				"filter": {
+					"name": "reddit_image_mirror",
+					"kind": "bin"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		}
+	]
+}
