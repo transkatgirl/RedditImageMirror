@@ -4,6 +4,7 @@
 #![allow(clippy::multiple_crate_versions)]
 
 mod config;
+mod control;
 mod media;
 mod posts;
 mod reddit;
@@ -11,15 +12,6 @@ mod twitter;
 
 use clap::Parser;
 use reqwest::blocking::Client;
-
-use std::{
-	sync::{
-		atomic::{AtomicBool, Ordering},
-		Arc,
-	},
-	thread,
-	time::Duration,
-};
 
 /// Mirrors image posts from Reddit to Twitter.
 #[derive(Parser, Debug)]
@@ -42,16 +34,9 @@ fn main() {
 	let http_client = Client::builder()
 		.build()
 		.expect("Unable to initalize HTTP client!");
+	let (clock_sender, yield_receiver) = control::initalize_graceful_clock();
 
-	let running = Arc::new(AtomicBool::new(true));
-	let r = running.clone();
-
-	ctrlc::set_handler(move || {
-		r.store(false, Ordering::SeqCst);
-	})
-	.expect("Unable to set Ctrl-C handler!");
-
-	while running.load(Ordering::SeqCst) {
+	loop {
 		let mut sleep_seconds = 900;
 
 		println!("Downloading posts from Reddit...");
@@ -96,6 +81,10 @@ fn main() {
 			eprintln!("Unable to delete old posts!");
 		}
 
-		thread::sleep(Duration::from_secs(sleep_seconds));
+		clock_sender.send(sleep_seconds).expect("Thread communcation failed!");
+		if yield_receiver.recv().expect("Thread communication failed!") {
+			break
+		}
 	}
+	println!("All active tasks have finished, exiting...");
 }

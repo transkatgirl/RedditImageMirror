@@ -161,5 +161,11 @@ pub fn delete_old_messages(
 		thread::sleep(Duration::from_secs(18));
 	}
 
-	Ok(removed_messages)
+	let broken_message_ids = crate::posts::database_get_messages_older_than(database, max_age*10)?;
+
+	for message in &broken_message_ids {
+		crate::posts::database_remove_message(database, message)?;
+	}
+
+	Ok([removed_messages, broken_message_ids].concat())
 }
